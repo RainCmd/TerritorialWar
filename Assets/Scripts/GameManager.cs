@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -20,6 +19,7 @@ public class GameManager : MonoBehaviour
     public RawImage battleTerritory;
     public RawImage battleBullet;
     public RawImage battleShield;
+    public Text battleInfo;
     public Transform objectContainer;
     public BattleObject prefabBattleObject;
     public Transform ballContainer;
@@ -132,7 +132,7 @@ public class GameManager : MonoBehaviour
             {
                 var info = playerInfos[i];
                 var player = battle.players[i];
-                info.SetValue(player.shield, player.bullet);
+                info.SetValue(player.shield, player.bullet, player.laser);
                 info.transform.localPosition = new Vector3(rt.rect.width * player.x / battle.width, rt.rect.height * player.y / battle.height, 0);
             }
 
@@ -145,7 +145,7 @@ public class GameManager : MonoBehaviour
                     i--;
                 }
             }
-
+            battleInfo.text = $"逻辑帧耗时:{LogicFrameTime}ms\n子弹数量:{battleBulletCount}";
             battle.RequestRender();
         }
         if (!battle)
@@ -153,7 +153,7 @@ public class GameManager : MonoBehaviour
             if (victoryPanel.activeSelf)
             {
                 victoryPanelShowTime -= Time.deltaTime;
-                if(victoryPanelShowTime <= 0)
+                if (victoryPanelShowTime <= 0)
                 {
                     victoryPanel.SetActive(false);
                     StartNewBattle();
@@ -208,4 +208,6 @@ public class GameManager : MonoBehaviour
         Recycle(ball);
     }
     public static GameManager Instance { get; private set; }
+    public static long LogicFrameTime;
+    public static int battleBulletCount;
 }

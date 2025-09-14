@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using UnityEngine;
-using static Battle;
 
 public struct Command
 {
@@ -28,8 +27,23 @@ public class Battle : IDisposable
         public float x, y;
         public float angle;
         public long shield = 10_000_000;
-        public long bullet;
+        public long bullet = 0;
+        public long laser = 0;
         public float radius;
+        public Color32 territoryColor;
+        public Color32 shieldColor;
+        public Color32 LaserColor;
+        public Player(byte id, float x, float y, float angle, float radius)
+        {
+            this.id = id;
+            this.x = x;
+            this.y = y;
+            this.angle = angle;
+            this.radius = radius;
+            territoryColor = (Color)PlayerColors[id] * .75f;
+            shieldColor = (Color)PlayerColors[id];
+            LaserColor = (Color)PlayerColors[id];
+        }
     }
     private struct Bullet
     {
@@ -114,10 +128,10 @@ public class Battle : IDisposable
         rendererBullet = new Color32[width * height];
         rendererTerritory = new Color32[width * height];
         var radius = Math.Min(width, height) / 16f;
-        players[0] = new Player { id = 0, x = width / 8, y = height / 8, angle = (float)Math.PI / 4, radius = radius };
-        players[1] = new Player { id = 1, x = width / 8, y = height * 7 / 8, angle = (float)Math.PI * 3 / 4, radius = radius };
-        players[2] = new Player { id = 2, x = width * 7 / 8, y = height / 8, angle = (float)Math.PI * 5 / 4, radius = radius };
-        players[3] = new Player { id = 3, x = width * 7 / 8, y = height * 7 / 8, angle = (float)Math.PI * 7 / 4, radius = radius };
+        players[0] = new Player(0, width / 8, height / 8, (float)Math.PI / 4, radius);
+        players[1] = new Player(1, width / 8, height * 7 / 8, (float)Math.PI * 3 / 4, radius);
+        players[2] = new Player(2, width * 7 / 8, height / 8, (float)Math.PI * 5 / 4, radius);
+        players[3] = new Player(3, width * 7 / 8, height * 7 / 8, (float)Math.PI * 7 / 4, radius);
         Renderer();
 
         new Thread(Update).Start();
@@ -127,10 +141,34 @@ public class Battle : IDisposable
         renderer = false;
     }
     public bool PreparedRenderer() => renderer;
+    private void RendererLine(float x, float y, float angle, byte player)
+    {
+        var vx = (float)Math.Cos(angle);
+        var vy = (float)Math.Sin(angle);
+        var step = Math.Abs(vx) > Math.Abs(vy) ? Math.Abs(vx) : Math.Abs(vy);
+        vx /= step;
+        vy /= step;
+        while (true)
+        {
+            var px = (int)x;
+            var py = (int)y;
+            if (px >= 0 && px < width && py >= 0 && py < height)
+            {
+                var index = py * width + px;
+                if (territory[index] != player)
+                    break;
+                rendererShield[index] = players[player].LaserColor;
+                x += vx;
+                y += vy;
+            }
+            else break;
+        }
+
+    }
     private void Renderer()
     {
         for (int i = 0; i < territory.Length; i++)
-            rendererTerritory[i] = PlayerColors[players[territory[i]].id];
+            rendererTerritory[i] = players[territory[i]].territoryColor;
         Array.Clear(rendererBullet, 0, rendererBullet.Length);
         Array.Clear(rendererShield, 0, rendererShield.Length);
         renderObjects.Clear();
@@ -153,10 +191,14 @@ public class Battle : IDisposable
                     {
                         var dx = x - radius;
                         var dy = y - radius;
-                        if (dx * dx + dy * dy <= radius * radius)
+                        var r = (dx * dx + dy * dy) / (radius * radius);
+                        if (r < 1)
                         {
                             var index = py * width + px;
-                            rendererShield[index] = new Color32(0, 0, 0, 128);
+                            var color = players[orb.player].shieldColor;
+                            r = MathF.Pow(r, 4);
+                            color = Color32.Lerp(color, new Color32(0, 0, 0, 255), r);
+                            rendererShield[index] = color;
                         }
                     }
                 }
@@ -164,6 +206,23 @@ public class Battle : IDisposable
         }
         foreach (var player in players)
             if (player.shield > 0)
+            {
+                if (player.laser > 0)
+                {
+                    var laserAngle = player.angle * 0.05f;
+                    for (int index = 0; index < 4; index++)
+                    {
+                        laserAngle += MathF.PI * .5f;
+                        RendererLine(player.x, player.y, laserAngle, player.id);
+                        var x = Mathf.Sin(laserAngle);
+                        var y = -Mathf.Cos(laserAngle);
+                        for (int i = 0; i < player.radius * .2f; i++)
+                        {
+                            RendererLine(player.x + x * i, player.y + y * i, laserAngle, player.id);
+                            RendererLine(player.x - x * i, player.y - y * i, laserAngle, player.id);
+                        }
+                    }
+                }
                 for (int x = 0; x < player.radius * 2; x++)
                     for (int y = 0; y < player.radius * 2; y++)
                     {
@@ -181,6 +240,7 @@ public class Battle : IDisposable
                             }
                         }
                     }
+            }
 
 
         renderer = true;
@@ -213,7 +273,7 @@ public class Battle : IDisposable
         territoryMarkingOrbs.Add(orb);
     }
 
-    private long Wipe(float cx, float cy, float radius, byte player, long bullet)
+    private long CircleWipe(float cx, float cy, float radius, byte player, long bullet)
     {
         for (int x = 0; x < radius * 2; x++)
             for (int y = 0; y < radius * 2; y++)
@@ -242,19 +302,62 @@ public class Battle : IDisposable
             }
         return bullet;
     }
+    private long LineWipe(float x, float y, float angle, byte player, long bullet, long penetration)
+    {
+        var vx = (float)Math.Cos(angle);
+        var vy = (float)Math.Sin(angle);
+        var step = Math.Abs(vx) > Math.Abs(vy) ? Math.Abs(vx) : Math.Abs(vy);
+        vx /= step;
+        vy /= step;
+        while (bullet > 0 && penetration > 0)
+        {
+            var px = (int)x;
+            var py = (int)y;
+            if (px >= 0 && px < width && py >= 0 && py < height)
+            {
+                var index = py * width + px;
+                if (territory[index] != player)
+                {
+                    bullet--;
+                    penetration--;
+                    territory[index] = player;
+                }
+                x += vx;
+                y += vy;
+            }
+            else break;
+        }
+        return bullet;
+    }
     private void PlayerLogic()
     {
         foreach (var player in players)
             if (player.shield > 0)
             {
-                for (int i = 0; i < 79 && player.bullet > 0; i++, player.bullet--)
+                for (int i = 0; i < 107 && player.bullet > 0; i++, player.bullet--)
                     GenPlayerButtle(player, 0.06f, 1);
                 for (int i = 0; i < 10; i++)
                     GenPlayerButtle(player, 1, 1);
                 player.angle += (float)Math.PI * 0.01f;
 
-                player.shield = Wipe(player.x, player.y, player.radius, player.id, player.shield);
+                player.shield = CircleWipe(player.x, player.y, player.radius, player.id, player.shield);
                 if (player.shield == 0) OnPlayerDead(player);
+                if (player.laser > 0)
+                {
+                    var laserAngle = player.angle * 0.05f;
+                    for (int index = 0; index < 4; index++)
+                    {
+                        laserAngle += MathF.PI * .5f;
+                        player.laser = LineWipe(player.x, player.y, laserAngle, player.id, player.laser, 1);
+                        var x = Mathf.Sin(laserAngle);
+                        var y = -Mathf.Cos(laserAngle);
+                        for (int i = 0; i < player.radius * .2f; i++)
+                        {
+                            player.laser = LineWipe(player.x + x * i, player.y + y * i, laserAngle, player.id, player.laser, 1);
+                            player.laser = LineWipe(player.x - x * i, player.y - y * i, laserAngle, player.id, player.laser, 1);
+                        }
+                    }
+                }
             }
     }
     private void BulletLogic()
@@ -391,7 +494,7 @@ public class Battle : IDisposable
                 orb.y = 2 * (height - radius - 1) - orb.y;
                 orb.vy = -orb.vy;
             }
-            orb.bullet = Wipe(orb.x, orb.y, radius, orb.player, orb.bullet);
+            orb.bullet = CircleWipe(orb.x, orb.y, radius, orb.player, orb.bullet);
             territoryMarkingOrbs[i] = orb;
             if (orb.bullet == 0)
             {
@@ -508,7 +611,7 @@ public class Battle : IDisposable
             }
 
             for (int idx = 0; idx < 30; idx++)
-                for (int index = 0; index < 5 && scatter.bullet > 0; index++, scatter.bullet --)
+                for (int index = 0; index < 5 && scatter.bullet > 0; index++, scatter.bullet--)
                 {
                     var angle = scatter.angle + index * Mathf.PI * 2 * .2f;
                     var bullet = new Bullet(scatter.x, scatter.y, angle + (float)random.NextDouble() * .1f * Mathf.PI * 2, (float)random.NextDouble() * 0.5f + 1.5f, scatter.player, 1);
@@ -605,8 +708,14 @@ public class Battle : IDisposable
                             case AbilityType.Snipe:
                                 {
                                     var value = (long)Math.Sqrt(cmd.value);
+                                    var x = Mathf.Sin(player.angle);
+                                    var y = -Mathf.Cos(player.angle);
                                     for (int i = 0; i < value; i++)
-                                        GenPlayerButtle(player, .01f, value);
+                                    {
+                                        var d = (float)(random.NextDouble() - 0.5) * player.radius;
+                                        var bullet = new Bullet(player.x + x * d, player.y + y * d, player.angle, (float)random.NextDouble() * 0.25f + 0.75f, player.id, value);
+                                        bullets.Add(bullet);
+                                    }
                                 }
                                 break;
                             case AbilityType.Scatter:
@@ -622,12 +731,8 @@ public class Battle : IDisposable
                                 };
                                 scatters.Add(star);
                                 break;
-                            case AbilityType.HeliumFlash:
-                                {
-                                    var value = (long)Math.Sqrt(cmd.value);
-                                    for (int i = 0; i < value; i++)
-                                        GenPlayerButtle(player, 1, value);
-                                }
+                            case AbilityType.Laser:
+                                players[cmd.player].laser += cmd.value;
                                 break;
                         }
                 }
@@ -659,9 +764,11 @@ public class Battle : IDisposable
             }
             sw.Stop();
             var millis = 10 - sw.ElapsedMilliseconds;
-            Debug($"逻辑帧耗时: {sw.ElapsedMilliseconds}ms，子弹数量：{bullets.Count}");
             if (millis > 0)
                 Thread.Sleep((int)millis);
+
+            GameManager.LogicFrameTime = sw.ElapsedMilliseconds;
+            GameManager.battleBulletCount = bullets.Count;
         }
     }
     public void Dispose()

@@ -7,7 +7,7 @@ public enum AbilityType
     Ball,   //¼ÓÇò
     Snipe,  //¾Ñ»÷
     Scatter,   //É¢²¼
-    HeliumFlash, //º¤ÉÁ
+    Laser,    //¼¤¹â
 }
 public class Ability : MonoBehaviour
 {
