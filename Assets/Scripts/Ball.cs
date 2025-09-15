@@ -7,19 +7,7 @@ public class Ball : MonoBehaviour
     public Collider2D col;
     public Rigidbody2D rb;
     public SpriteRenderer sprite;
-    private byte player;
-    public byte Player
-    {
-        get => player;
-        set
-        {
-            player = value;
-            if (player < Battle.PlayerColors.Length)
-                sprite.color = Battle.PlayerColors[player];
-            else
-                sprite.color = Color.white;
-        }
-    }
+    public byte player;
     private long value = 1;
     public long Value
     {
@@ -29,6 +17,11 @@ public class Ball : MonoBehaviour
             this.value = value;
             OnValueChanged();
         }
+    }
+    public void SetPlayer(byte player, Color color)
+    {
+        this.player = player;
+        sprite.color = color;
     }
     private void Awake()
     {
@@ -47,7 +40,7 @@ public class Ball : MonoBehaviour
         var rate = collision.collider.GetComponent<Rate>();
         if (rate)
         {
-            Value *= rate.rate;
+            Value = rate.GetValue(Value);
             rate.TriggerAnim();
         }
     }

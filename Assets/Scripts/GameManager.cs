@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Drawing;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -24,7 +25,8 @@ public class GameManager : MonoBehaviour
     public BattleObject prefabBattleObject;
     public Transform ballContainer;
     public Ball prefabBall;
-    public PlayerInfo[] playerInfos;
+    public PlayerInfo playerInfoPrefab;
+    private List<PlayerInfo> playerInfoList = new();
     public GameObject victoryPanel;
     public Text victoryText;
     private float victoryPanelShowTime;
@@ -63,16 +65,28 @@ public class GameManager : MonoBehaviour
         tex.Apply();
         battleShield.texture = tex;
 
+        while (playerInfoList.Count < battle.players.Length)
+        {
+            var info = Instantiate(playerInfoPrefab);
+            info.gameObject.SetActive(true);
+            info.transform.SetParent(objectContainer);
+            playerInfoList.Add(info);
+        }
+        while (playerInfoList.Count > battle.players.Length)
+        {
+            var info = playerInfoList[playerInfoList.Count - 1];
+            info.gameObject.SetActive(false);
+            playerInfoList.RemoveAt(playerInfoList.Count - 1);
+        }
+
         var list = new List<byte>();
-        for (byte i = 0; i < Battle.PlayerColors.Length; i++)
+        for (byte i = 0; i < battle.players.Length; i++)
             for (int j = 0; j < 5; j++)
                 list.Add(i);
         for (int i = 0; i < list.Count - 1; i++)
         {
             var j = Random.Range(i, list.Count);
-            var temp = list[i];
-            list[i] = list[j];
-            list[j] = temp;
+            (list[j], list[i]) = (list[i], list[j]);
         }
         foreach (var item in list)
             playerBallShoot.Enqueue(item);
@@ -123,14 +137,12 @@ public class GameManager : MonoBehaviour
                 battleObjects.Add(obj);
             }
             for (int i = 0; i < battleObjects.Count; i++)
-            {
                 battleObjects[i].SetInfo(battle.renderObjects[i]);
-            }
 
             var rt = (RectTransform)objectContainer;
-            for (int i = 0; i < playerInfos.Length; i++)
+            for (int i = 0; i < playerInfoList.Count; i++)
             {
-                var info = playerInfos[i];
+                var info = playerInfoList[i];
                 var player = battle.players[i];
                 info.SetValue(player.shield, player.bullet, player.laser);
                 info.transform.localPosition = new Vector3(rt.rect.width * player.x / battle.width, rt.rect.height * player.y / battle.height, 0);
@@ -139,7 +151,7 @@ public class GameManager : MonoBehaviour
             for (int i = 0; i < balls.Count; i++)
             {
                 var ball = balls[i];
-                if (battle.players[ball.Player].shield == 0)
+                if (battle.players[ball.player].shield == 0)
                 {
                     Recycle(ball);
                     i--;
@@ -162,14 +174,12 @@ public class GameManager : MonoBehaviour
             else
             {
                 victoryPanel.SetActive(true);
-                for (int i = 0; i < battle.players.Length; i++)
-                {
-                    if (battle.players[i].shield > 0)
+                foreach (var player in battle.players)
+                    if (player.shield > 0)
                     {
-                        victoryText.text = $"恭喜{Battle.PlayerColorNames[i]}获得了胜利！";
+                        victoryText.text = $"恭喜 <color=#{ColorUtility.ToHtmlStringRGBA(player.color)}>{player.name}</color> 获得了胜利！";
                         break;
                     }
-                }
                 victoryPanelShowTime = 5;
             }
         }
@@ -197,14 +207,14 @@ public class GameManager : MonoBehaviour
             ball.transform.SetParent(ballContainer);
         }
         balls.Add(ball);
-        ball.Player = player;
+        ball.SetPlayer(player, battle.players[player].color);
         ball.gameObject.SetActive(true);
         ball.Launch(startPosition.position);
     }
     public void OnAbility(Ball ball, Ability ability)
     {
-        battle?.OnCmd(new Command(ball.Player, ability.abilityType, ball.Value));
-        playerBallShoot.Enqueue(ball.Player);
+        battle?.OnCmd(new Command(ball.player, ability.abilityType, ball.Value));
+        playerBallShoot.Enqueue(ball.player);
         Recycle(ball);
     }
     public static GameManager Instance { get; private set; }

@@ -19,30 +19,33 @@ public struct Command
 }
 public class Battle : IDisposable
 {
-    public static readonly Color32[] PlayerColors = new Color32[] { Color.red, Color.green, Color.yellow, Color.blue };
-    public static readonly string[] PlayerColorNames = new string[] { "<color=#f00>红色</color>", "<color=#0f0>绿色</color>", "<color=#ff0>黄色</color>", "<color=#00f>蓝色</color>" };
     public class Player
     {
         public byte id;
+        public string name;
         public float x, y;
         public float angle;
         public long shield = 10_000_000;
         public long bullet = 0;
         public long laser = 0;
         public float radius;
+        public Color32 color;
         public Color32 territoryColor;
         public Color32 shieldColor;
         public Color32 LaserColor;
-        public Player(byte id, float x, float y, float angle, float radius)
+        public Player(byte id, string name, float x, float y, float angle, float radius, Color color)
         {
             this.id = id;
+            this.name = name;
             this.x = x;
             this.y = y;
             this.angle = angle;
             this.radius = radius;
-            territoryColor = (Color)PlayerColors[id] * .75f;
-            shieldColor = (Color)PlayerColors[id];
-            LaserColor = (Color)PlayerColors[id];
+            this.color = color;
+            territoryColor = color * .75f;
+            shieldColor = color;
+            LaserColor = color;
+            LaserColor.a = 192;
         }
     }
     private struct Bullet
@@ -94,7 +97,7 @@ public class Battle : IDisposable
     public readonly List<ObjectInfo> renderObjects = new();
     public readonly int width, height;
     private bool renderer = false;
-    public readonly Player[] players = new Player[4];
+    public readonly Player[] players;
     private readonly List<Bullet> bullets = new();
     private readonly List<TerritoryMarkingOrb> territoryMarkingOrbs = new();
     private readonly List<Scatter> scatters = new();
@@ -104,34 +107,36 @@ public class Battle : IDisposable
         this.width = width;
         this.height = height;
         territory = new byte[width * height];
-        for (int i = 0; i < territory.Length; i++)
-        {
-            var x = i % width;
-            var y = i / width;
-            if (x < width / 2)
-            {
-                if (y < height / 2)
-                    territory[i] = 0;
-                else
-                    territory[i] = 1;
-            }
-            else
-            {
-                if (y < height / 2)
-                    territory[i] = 2;
-                else
-                    territory[i] = 3;
-            }
-        }
         orbMask = new int[width * height];
         rendererShield = new Color32[width * height];
         rendererBullet = new Color32[width * height];
         rendererTerritory = new Color32[width * height];
         var radius = Math.Min(width, height) / 16f;
-        players[0] = new Player(0, width / 8, height / 8, (float)Math.PI / 4, radius);
-        players[1] = new Player(1, width / 8, height * 7 / 8, (float)Math.PI * 3 / 4, radius);
-        players[2] = new Player(2, width * 7 / 8, height / 8, (float)Math.PI * 5 / 4, radius);
-        players[3] = new Player(3, width * 7 / 8, height * 7 / 8, (float)Math.PI * 7 / 4, radius);
+        players = new Player[]
+        {
+            new(0,"红色", width / 8, height / 8, (float)(Math.PI * 2 * random.NextDouble()), radius,Color.red),
+            new(1,"绿色", width / 8, height * 7 / 8, (float)(Math.PI * 2 * random.NextDouble()), radius,Color.green),
+            new(2,"黄色", width * 7 / 8, height / 8, (float)(Math.PI * 2 * random.NextDouble()), radius,Color.yellow),
+            new(3,"蓝色", width * 7 / 8, height * 7 / 8, (float)(Math.PI * 2 * random.NextDouble()), radius,Color.blue),
+            new(4,"青色", width / 2, height / 2, (float)(Math.PI * 2 * random.NextDouble()), radius,Color.cyan)
+        };
+        for (int i = 0; i < territory.Length; i++)
+        {
+            var x = i % width;
+            var y = i / width;
+            var sqrDist = float.MaxValue;
+            for (byte j = 0; j < players.Length; j++)
+            {
+                var dx = players[j].x - x;
+                var dy = players[j].y - y;
+                var d = dx * dx + dy * dy;
+                if (d < sqrDist)
+                {
+                    sqrDist = d;
+                    territory[i] = j;
+                }
+            }
+        }
         Renderer();
 
         new Thread(Update).Start();
@@ -216,7 +221,7 @@ public class Battle : IDisposable
                         RendererLine(player.x, player.y, laserAngle, player.id);
                         var x = Mathf.Sin(laserAngle);
                         var y = -Mathf.Cos(laserAngle);
-                        for (int i = 0; i < player.radius * .2f; i++)
+                        for (int i = 0; i < player.radius; i++)
                         {
                             RendererLine(player.x + x * i, player.y + y * i, laserAngle, player.id);
                             RendererLine(player.x - x * i, player.y - y * i, laserAngle, player.id);
@@ -351,7 +356,7 @@ public class Battle : IDisposable
                         player.laser = LineWipe(player.x, player.y, laserAngle, player.id, player.laser, 1);
                         var x = Mathf.Sin(laserAngle);
                         var y = -Mathf.Cos(laserAngle);
-                        for (int i = 0; i < player.radius * .2f; i++)
+                        for (int i = 0; i < player.radius; i++)
                         {
                             player.laser = LineWipe(player.x + x * i, player.y + y * i, laserAngle, player.id, player.laser, 1);
                             player.laser = LineWipe(player.x - x * i, player.y - y * i, laserAngle, player.id, player.laser, 1);
