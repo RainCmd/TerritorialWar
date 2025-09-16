@@ -1150,7 +1150,7 @@ TextMesh:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 291865415}
-  m_Text: +1
+  m_Text: +100
   m_OffsetZ: 0
   m_CharacterSize: 1
   m_LineSpacing: 1
@@ -3442,7 +3442,7 @@ GameObject:
   - component: {fileID: 935458960}
   - component: {fileID: 935458959}
   m_Layer: 0
-  m_Name: Rate +1 (1)
+  m_Name: Rate +100
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3476,7 +3476,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fbcffdff50aca6b458d5270cba603727, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  rate: 1
+  rate: 100
   type: 1
   animTime: 0.5
 --- !u!58 &935458960
@@ -7416,51 +7416,6 @@ Transform:
   - {fileID: 2054396410}
   m_Father: {fileID: 1249016830}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1502894964
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1502894966}
-  - component: {fileID: 1502894965}
-  m_Layer: 0
-  m_Name: GameObject
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1502894965
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1502894964}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 410121b38f94d134e87c2fb7c29779b4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  roomId: 3336696
---- !u!4 &1502894966
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1502894964}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 1960.6251, y: 1009.5399, z: -4.307013}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1506505925
 GameObject:
   m_ObjectHideFlags: 0
@@ -10581,6 +10536,7 @@ MonoBehaviour:
   col: {fileID: 1877212147054367860}
   rb: {fileID: 8847367887747055899}
   sprite: {fileID: 3406322233656968377}
+  player: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -10589,4 +10545,3 @@ SceneRoots:
   - {fileID: 1563977370}
   - {fileID: 632660284}
   - {fileID: 1249016830}
-  - {fileID: 1502894966}

@@ -29,6 +29,8 @@ public class Battle : IDisposable
         public long bullet = 0;
         public long laser = 0;
         public float radius;
+        public int territory;
+        public float influence;
         public Color32 color;
         public Color32 territoryColor;
         public Color32 shieldColor;
@@ -136,10 +138,17 @@ public class Battle : IDisposable
                     territory[i] = j;
                 }
             }
+            players[territory[i]].territory++;
         }
         Renderer();
 
         new Thread(Update).Start();
+    }
+    private void SetTerritory(int index, byte player)
+    {
+        players[territory[index]].territory--;
+        players[player].territory++;
+        territory[index] = player;
     }
     public void RequestRender()
     {
@@ -297,7 +306,7 @@ public class Battle : IDisposable
                             if (bullet > 0)
                             {
                                 bullet--;
-                                territory[index] = player;
+                                SetTerritory(index, player);
                                 if (bullet == 0)
                                     return 0;
                             }
@@ -325,7 +334,7 @@ public class Battle : IDisposable
                 {
                     bullet--;
                     penetration--;
-                    territory[index] = player;
+                    SetTerritory(index, player);
                 }
                 x += vx;
                 y += vy;
@@ -341,7 +350,8 @@ public class Battle : IDisposable
             {
                 for (int i = 0; i < 107 && player.bullet > 0; i++, player.bullet--)
                     GenPlayerButtle(player, 0.06f, 1);
-                for (int i = 0; i < 10; i++)
+                player.influence += player.territory / (player.radius * player.radius * Mathf.PI);
+                while (player.influence-- > 1)
                     GenPlayerButtle(player, 1, 1);
                 player.angle += (float)Math.PI * 0.01f;
 
@@ -405,7 +415,7 @@ public class Battle : IDisposable
             {
                 if (territory[index] != bullet.player)
                 {
-                    territory[index] = bullet.player;
+                    SetTerritory(index, bullet.player);
                     bullet.damage--;
                 }
                 if (orbMask[index] > 0)

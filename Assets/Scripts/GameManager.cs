@@ -144,7 +144,7 @@ public class GameManager : MonoBehaviour
             {
                 var info = playerInfoList[i];
                 var player = battle.players[i];
-                info.SetValue(player.shield, player.bullet, player.laser);
+                info.SetValue(player.shield, player.territory, player.bullet, player.laser);
                 info.transform.localPosition = new Vector3(rt.rect.width * player.x / battle.width, rt.rect.height * player.y / battle.height, 0);
             }
 
