@@ -28,11 +28,15 @@ public class GameManager : MonoBehaviour
     public PlayerInfo playerInfoPrefab;
     private List<PlayerInfo> playerInfoList = new();
     public GameObject victoryPanel;
+    public GameObject readyPanel;
     public Text victoryText;
-    private float victoryPanelShowTime;
     private Battle battle;
     public Transform startPosition;
     public int battleSize = 256;
+    public int rateBallCount = 5;
+    public long initialHP = 1_000_000;
+    [Range(0, 2)]
+    public float areaPowerRate = 1.0f;
     private List<Ball> balls = new();
     private Stack<Ball> pool = new();
     private List<BattleObject> battleObjects = new();
@@ -42,16 +46,13 @@ public class GameManager : MonoBehaviour
     private void Awake()
     {
         Instance = this;
-        StartNewBattle();
     }
     [ContextMenu("StartNewBattle")]
     public void StartNewBattle()
     {
         battle?.Dispose();
-        while (balls.Count > 0) Recycle(balls[0]);
-        playerBallShoot.Clear();
 
-        battle = new Battle(battleSize, battleSize);
+        battle = new Battle(battleSize, battleSize, initialHP, areaPowerRate);
         var tex = new Texture2D(battle.width, battle.height) { name = "领土tex" };
         tex.SetPixels32(battle.rendererTerritory);
         tex.Apply();
@@ -81,7 +82,7 @@ public class GameManager : MonoBehaviour
 
         var list = new List<byte>();
         for (byte i = 0; i < battle.players.Length; i++)
-            for (int j = 0; j < 5; j++)
+            for (int j = 0; j < rateBallCount; j++)
                 list.Add(i);
         for (int i = 0; i < list.Count - 1; i++)
         {
@@ -160,28 +161,17 @@ public class GameManager : MonoBehaviour
             battleInfo.text = $"逻辑帧耗时:{LogicFrameTime}ms\n子弹数量:{battleBulletCount}";
             battle.RequestRender();
         }
-        if (!battle)
+        if (!battle && !victoryPanel.activeSelf && !readyPanel.activeSelf)
         {
-            if (victoryPanel.activeSelf)
-            {
-                victoryPanelShowTime -= Time.deltaTime;
-                if (victoryPanelShowTime <= 0)
+            while (balls.Count > 0) Recycle(balls[0]);
+            playerBallShoot.Clear();
+            victoryPanel.SetActive(true);
+            foreach (var player in battle.players)
+                if (player.shield > 0)
                 {
-                    victoryPanel.SetActive(false);
-                    StartNewBattle();
+                    victoryText.text = $"恭喜 <color=#{ColorUtility.ToHtmlStringRGBA(player.color)}>{player.name}</color> 获得了胜利！";
+                    break;
                 }
-            }
-            else
-            {
-                victoryPanel.SetActive(true);
-                foreach (var player in battle.players)
-                    if (player.shield > 0)
-                    {
-                        victoryText.text = $"恭喜 <color=#{ColorUtility.ToHtmlStringRGBA(player.color)}>{player.name}</color> 获得了胜利！";
-                        break;
-                    }
-                victoryPanelShowTime = 5;
-            }
         }
     }
     private void OnDestroy()

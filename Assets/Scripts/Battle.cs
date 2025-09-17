@@ -35,13 +35,14 @@ public class Battle : IDisposable
         public Color32 territoryColor;
         public Color32 shieldColor;
         public Color32 LaserColor;
-        public Player(byte id, string name, float x, float y, float angle, float radius, Color color)
+        public Player(byte id, string name, float x, float y, float angle, long initialHP, float radius, Color color)
         {
             this.id = id;
             this.name = name;
             this.x = x;
             this.y = y;
             this.angle = angle;
+            this.shield = initialHP;
             this.radius = radius;
             this.color = color;
             territoryColor = color * .75f;
@@ -72,7 +73,7 @@ public class Battle : IDisposable
         public float vx, vy;
         public byte player;
         public long bullet;
-        public readonly float Radius => (float)Math.Max(Math.Log(bullet, 2f), 1);
+        public float GetRadius(float rate) => (float)Math.Max(Math.Log(bullet, 2f) * rate, 1);
         public TerritoryMarkingOrb(Player player, long bullet, float v)
         {
             x = player.x;
@@ -104,10 +105,14 @@ public class Battle : IDisposable
     private readonly List<TerritoryMarkingOrb> territoryMarkingOrbs = new();
     private readonly List<Scatter> scatters = new();
     private readonly Queue<Command> commandQueue = new();
-    public Battle(int width, int height)
+    public readonly float radiusRate;
+    private readonly float areaPowerRate;
+    public Battle(int width, int height, long initialHP, float areaPowerRate)
     {
         this.width = width;
         this.height = height;
+        radiusRate = Math.Min(width, height) / 256f;
+        this.areaPowerRate = areaPowerRate;
         territory = new byte[width * height];
         orbMask = new int[width * height];
         rendererShield = new Color32[width * height];
@@ -116,11 +121,11 @@ public class Battle : IDisposable
         var radius = Math.Min(width, height) / 16f;
         players = new Player[]
         {
-            new(0,"红色", width / 8, height / 8, (float)(Math.PI * 2 * random.NextDouble()), radius,Color.red),
-            new(1,"绿色", width / 8, height * 7 / 8, (float)(Math.PI * 2 * random.NextDouble()), radius,Color.green),
-            new(2,"黄色", width * 7 / 8, height / 8, (float)(Math.PI * 2 * random.NextDouble()), radius,Color.yellow),
-            new(3,"蓝色", width * 7 / 8, height * 7 / 8, (float)(Math.PI * 2 * random.NextDouble()), radius,Color.blue),
-            new(4,"青色", width / 2, height / 2, (float)(Math.PI * 2 * random.NextDouble()), radius,Color.cyan)
+            new(0,"红色", width / 8, height / 8, (float)(Math.PI * 2 * random.NextDouble()), initialHP, radius, Color.red),
+            new(1,"绿色", width / 8, height * 7 / 8, (float)(Math.PI * 2 * random.NextDouble()), initialHP, radius, Color.green),
+            new(2,"黄色", width * 7 / 8, height / 8, (float)(Math.PI * 2 * random.NextDouble()), initialHP, radius, Color.yellow),
+            new(3,"蓝色", width * 7 / 8, height * 7 / 8, (float)(Math.PI * 2 * random.NextDouble()),initialHP, radius, Color.blue),
+            new(4,"青色", width / 2, height / 2, (float)(Math.PI * 2 * random.NextDouble()), initialHP, radius, Color.cyan)
         };
         for (int i = 0; i < territory.Length; i++)
         {
@@ -143,6 +148,7 @@ public class Battle : IDisposable
         Renderer();
 
         new Thread(Update).Start();
+        this.areaPowerRate = areaPowerRate;
     }
     private void SetTerritory(int index, byte player)
     {
@@ -195,7 +201,7 @@ public class Battle : IDisposable
             renderObjects.Add(new ObjectInfo(star.x / width, star.y / height, star.bullet));
         foreach (var orb in territoryMarkingOrbs)
         {
-            var radius = orb.Radius;
+            var radius = orb.GetRadius(radiusRate);
             for (int x = 0; x < radius * 2; x++)
                 for (int y = 0; y < radius * 2; y++)
                 {
@@ -350,7 +356,7 @@ public class Battle : IDisposable
             {
                 for (int i = 0; i < 107 && player.bullet > 0; i++, player.bullet--)
                     GenPlayerButtle(player, 0.06f, 1);
-                player.influence += player.territory / (player.radius * player.radius * Mathf.PI);
+                player.influence += Mathf.Pow(player.territory / (player.radius * player.radius * Mathf.PI), areaPowerRate);
                 while (player.influence-- > 1)
                     GenPlayerButtle(player, 1, 1);
                 player.angle += (float)Math.PI * 0.01f;
@@ -461,7 +467,7 @@ public class Battle : IDisposable
         for (int i = 0; i < territoryMarkingOrbs.Count; i++)
         {
             var orb = territoryMarkingOrbs[i];
-            var radius = orb.Radius;
+            var radius = orb.GetRadius(radiusRate);
             for (int x = 0; x < radius * 2; x++)
                 for (int y = 0; y < radius * 2; y++)
                 {
@@ -487,7 +493,7 @@ public class Battle : IDisposable
             var orb = territoryMarkingOrbs[i];
             orb.x += orb.vx;
             orb.y += orb.vy;
-            var radius = orb.Radius;
+            var radius = orb.GetRadius(radiusRate);
 
             if (orb.x - radius < 0)
             {
@@ -524,8 +530,8 @@ public class Battle : IDisposable
             {
                 var a = territoryMarkingOrbs[x];
                 var b = territoryMarkingOrbs[y];
-                var ra = a.Radius;
-                var rb = b.Radius;
+                var ra = a.GetRadius(radiusRate);
+                var rb = b.GetRadius(radiusRate);
                 var d = ra + rb;
                 var dx = a.x - b.x;
                 var dy = a.y - b.y;
@@ -568,7 +574,7 @@ public class Battle : IDisposable
                 var orb = territoryMarkingOrbs[x];
                 if (player.shield > 0 && orb.player != player.id)
                 {
-                    var radius = orb.Radius;
+                    var radius = orb.GetRadius(radiusRate);
                     var d = radius + player.radius;
                     var dx = orb.x - player.x;
                     var dy = orb.y - player.y;
