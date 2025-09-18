@@ -230,9 +230,9 @@ public class Battle : IDisposable
                 if (player.laser > 0)
                 {
                     var laserAngle = player.angle * 0.05f;
-                    for (int index = 0; index < 4; index++)
+                    for (int index = 0; index < 3; index++)
                     {
-                        laserAngle += MathF.PI * .5f;
+                        laserAngle += MathF.PI * 2f / 3;
                         RendererLine(player.x, player.y, laserAngle, player.id);
                         var x = Mathf.Sin(laserAngle);
                         var y = -Mathf.Cos(laserAngle);
@@ -354,8 +354,9 @@ public class Battle : IDisposable
         foreach (var player in players)
             if (player.shield > 0)
             {
-                for (int i = 0; i < 107 && player.bullet > 0; i++, player.bullet--)
-                    GenPlayerButtle(player, 0.06f, 1);
+                var firepower = (long)Mathf.Log10(player.bullet + 10);
+                for (int i = 0; i < 107 && player.bullet > 0; i++, player.bullet -= firepower)
+                    GenPlayerButtle(player, 0.06f, firepower);
                 player.influence += Mathf.Pow(player.territory / (player.radius * player.radius * Mathf.PI), areaPowerRate);
                 while (player.influence-- > 1)
                     GenPlayerButtle(player, 1, 1);
@@ -365,17 +366,18 @@ public class Battle : IDisposable
                 if (player.shield == 0) OnPlayerDead(player);
                 if (player.laser > 0)
                 {
+                    firepower = (long)Mathf.Log10(player.laser + 10);
                     var laserAngle = player.angle * 0.05f;
-                    for (int index = 0; index < 4; index++)
+                    for (int index = 0; index < 3; index++)
                     {
-                        laserAngle += MathF.PI * .5f;
-                        player.laser = LineWipe(player.x, player.y, laserAngle, player.id, player.laser, 1);
+                        laserAngle += MathF.PI * 2f / 3;
+                        player.laser = LineWipe(player.x, player.y, laserAngle, player.id, player.laser, firepower);
                         var x = Mathf.Sin(laserAngle);
                         var y = -Mathf.Cos(laserAngle);
                         for (int i = 0; i < player.radius; i++)
                         {
-                            player.laser = LineWipe(player.x + x * i, player.y + y * i, laserAngle, player.id, player.laser, 1);
-                            player.laser = LineWipe(player.x - x * i, player.y - y * i, laserAngle, player.id, player.laser, 1);
+                            player.laser = LineWipe(player.x + x * i, player.y + y * i, laserAngle, player.id, player.laser, firepower);
+                            player.laser = LineWipe(player.x - x * i, player.y - y * i, laserAngle, player.id, player.laser, firepower);
                         }
                     }
                 }
@@ -631,11 +633,12 @@ public class Battle : IDisposable
                 scatter.vy = -scatter.vy;
             }
 
+            var firepower = (long)Mathf.Log10(scatter.bullet + 10);
             for (int idx = 0; idx < 30; idx++)
-                for (int index = 0; index < 5 && scatter.bullet > 0; index++, scatter.bullet--)
+                for (int index = 0; index < 5 && scatter.bullet > 0; index++, scatter.bullet-= firepower)
                 {
                     var angle = scatter.angle + index * Mathf.PI * 2 * .2f;
-                    var bullet = new Bullet(scatter.x, scatter.y, angle + (float)random.NextDouble() * .1f * Mathf.PI * 2, (float)random.NextDouble() * 0.5f + 1.5f, scatter.player, 1);
+                    var bullet = new Bullet(scatter.x, scatter.y, angle + (float)random.NextDouble() * .1f * Mathf.PI * 2, (float)random.NextDouble() * 0.5f + 1.5f, scatter.player, firepower);
                     bullets.Add(bullet);
                 }
             {
