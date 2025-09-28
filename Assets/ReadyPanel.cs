@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,6 +12,7 @@ public class ReadyPanel : MonoBehaviour
     public Text InitialHPText;
     public Slider areaPowerRate;
     public Text areaPowerRateText;
+    public GameObject resolutionRatio;
     private void Awake()
     {
         battleSize.onValueChanged.AddListener(OnBattleSizeChanged);
@@ -23,6 +23,10 @@ public class ReadyPanel : MonoBehaviour
         OnInitialHPChanged(InitialHP.value);
         areaPowerRate.onValueChanged.AddListener(OnAreaPowerRateChanged);
         OnAreaPowerRateChanged(areaPowerRate.value);
+
+#if UNITY_ANDROID
+        resolutionRatio.SetActive(false);
+#endif
     }
 
     private void OnAreaPowerRateChanged(float rate)
@@ -33,7 +37,7 @@ public class ReadyPanel : MonoBehaviour
 
     private void OnInitialHPChanged(float hp)
     {
-        hp = hp * hp * 100_000_000 + 10;
+        hp = hp * hp * hp * 100_000_000 + 10;
         gameManager.initialHP = (long)hp;
         InitialHPText.text = $"{Ball.FormatNumber((long)hp)}";
     }
@@ -53,5 +57,26 @@ public class ReadyPanel : MonoBehaviour
     {
         gameManager.StartNewBattle();
         gameObject.SetActive(false);
+    }
+    public void OnResolutionRatioChanged(int value)
+    {
+        switch (value)
+        {
+            case 0:
+                Screen.SetResolution(2560, 1440, true);
+                break;
+            case 1:
+                Screen.SetResolution(1280, 720, false);
+                break;
+            case 2:
+                Screen.SetResolution(1920, 1080, false);
+                break;
+            case 3:
+                Screen.SetResolution(2560, 1440, false);
+                break;
+            default:
+                break;
+        }
+        gameManager.OnResolutionRatioChanged();
     }
 }

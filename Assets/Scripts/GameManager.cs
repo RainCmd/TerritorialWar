@@ -20,6 +20,7 @@ public class GameManager : MonoBehaviour
     public RawImage battleTerritory;
     public RawImage battleBullet;
     public RawImage battleShield;
+    public RectTransform productionPanel;
     public Text battleInfo;
     public Transform objectContainer;
     public BattleObject prefabBattleObject;
@@ -53,15 +54,15 @@ public class GameManager : MonoBehaviour
         battle?.Dispose();
 
         battle = new Battle(battleSize, battleSize, initialHP, areaPowerRate);
-        var tex = new Texture2D(battle.width, battle.height) { name = "领土tex" };
+        var tex = new Texture2D(battle.width, battle.height) { name = "棰嗗湡tex" };
         tex.SetPixels32(battle.rendererTerritory);
         tex.Apply();
         battleTerritory.texture = tex;
-        tex = new Texture2D(battle.width, battle.height) { name = "子弹tex" };
+        tex = new Texture2D(battle.width, battle.height) { name = "瀛愬脊tex" };
         tex.SetPixels32(battle.rendererBullet);
         tex.Apply();
         battleBullet.texture = tex;
-        tex = new Texture2D(battle.width, battle.height) { name = "盾tex" };
+        tex = new Texture2D(battle.width, battle.height) { name = "鐩総ex" };
         tex.SetPixels32(battle.rendererShield);
         tex.Apply();
         battleShield.texture = tex;
@@ -91,6 +92,16 @@ public class GameManager : MonoBehaviour
         }
         foreach (var item in list)
             playerBallShoot.Enqueue(item);
+    }
+    private void Start()
+    {
+        OnResolutionRatioChanged();
+    }
+    public void OnResolutionRatioChanged()
+    {
+        var rt = transform as RectTransform;
+        var rect = rt.rect;
+        productionPanel.sizeDelta = new Vector2(-rect.height, 0);
     }
     private void Update()
     {
@@ -158,7 +169,7 @@ public class GameManager : MonoBehaviour
                     i--;
                 }
             }
-            battleInfo.text = $"逻辑帧耗时:{LogicFrameTime}ms\n子弹数量:{battleBulletCount}";
+            battleInfo.text = $"閫昏緫甯ц�楁椂:{LogicFrameTime}ms\n绮掑瓙鏁伴噺:{battleBulletCount}";
             battle.RequestRender();
         }
         if (!battle && !victoryPanel.activeSelf && !readyPanel.activeSelf)
@@ -169,7 +180,7 @@ public class GameManager : MonoBehaviour
             foreach (var player in battle.players)
                 if (player.shield > 0)
                 {
-                    victoryText.text = $"恭喜 <color=#{ColorUtility.ToHtmlStringRGBA(player.color)}>{player.name}</color> 获得了胜利！";
+                    victoryText.text = $"鎭枩 <color=#{ColorUtility.ToHtmlStringRGBA(player.color)}>{player.name}</color> 鑾峰緱浜嗚儨鍒╋紒";
                     break;
                 }
         }
