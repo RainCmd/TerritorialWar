@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public struct Command
@@ -74,10 +75,10 @@ public class Battle : IDisposable
         public byte player;
         public long bullet;
         public float GetRadius(float rate) => (float)Math.Max(Math.Log(bullet, 2f) * rate, 1);
-        public TerritoryMarkingOrb(Player player, long bullet, float v)
+        public TerritoryMarkingOrb(Player player, System.Random random, long bullet, float v)
         {
-            x = player.x;
-            y = player.y;
+            x = player.x + (float)random.NextDouble() - .5f;
+            y = player.y + (float)random.NextDouble() - .5f;
             this.player = player.id;
             this.bullet = bullet;
             vx = (float)Math.Cos(player.angle) * v;
@@ -279,7 +280,10 @@ public class Battle : IDisposable
         foreach (var item in players)
             if (item.shield > 0) activePlayers++;
         if (activePlayers <= 1)
+        {
             Dispose();
+            RequestRender();
+        }
     }
 
     private void GenPlayerButtle(Player player, float scattering, long damage)
@@ -289,7 +293,7 @@ public class Battle : IDisposable
     }
     private void GenTMOrb(Player player, long bullet)
     {
-        var orb = new TerritoryMarkingOrb(player, bullet, 1f);
+        var orb = new TerritoryMarkingOrb(player, random, bullet, 1f);
         territoryMarkingOrbs.Add(orb);
     }
 
@@ -728,48 +732,48 @@ public class Battle : IDisposable
                 if (cmd.player < players.Length)
                 {
                     var player = players[cmd.player];
-                    if (player.shield > 0)
-                        switch (cmd.type)
-                        {
-                            case AbilityType.HP:
+                    switch (cmd.type)
+                    {
+                        case AbilityType.HP:
+                            if (player.shield > 0)
                                 player.shield += cmd.value;
-                                break;
-                            case AbilityType.Strafe:
-                                player.bullet += cmd.value;
-                                break;
-                            case AbilityType.Ball:
-                                GenTMOrb(player, cmd.value);
-                                break;
-                            case AbilityType.Snipe:
+                            break;
+                        case AbilityType.Strafe:
+                            player.bullet += cmd.value;
+                            break;
+                        case AbilityType.Ball:
+                            GenTMOrb(player, cmd.value);
+                            break;
+                        case AbilityType.Snipe:
+                            {
+                                var value = (long)Math.Sqrt(cmd.value);
+                                var x = Mathf.Sin(player.angle);
+                                var y = -Mathf.Cos(player.angle);
+                                for (int i = 0; i < value; i++)
                                 {
-                                    var value = (long)Math.Sqrt(cmd.value);
-                                    var x = Mathf.Sin(player.angle);
-                                    var y = -Mathf.Cos(player.angle);
-                                    for (int i = 0; i < value; i++)
-                                    {
-                                        var d = (float)(random.NextDouble() - 0.5) * player.radius;
-                                        var bullet = new Bullet(player.x + x * d, player.y + y * d, player.angle, (float)random.NextDouble() * 0.25f + 0.75f, player.id, value);
-                                        bullets.Add(bullet);
-                                    }
+                                    var d = (float)(random.NextDouble() - 0.5) * player.radius;
+                                    var bullet = new Bullet(player.x + x * d, player.y + y * d, player.angle, (float)random.NextDouble() * 0.25f + 0.75f, player.id, value);
+                                    bullets.Add(bullet);
                                 }
-                                break;
-                            case AbilityType.Scatter:
-                                var star = new Scatter
-                                {
-                                    x = player.x,
-                                    y = player.y,
-                                    angle = player.angle,
-                                    vx = (float)Math.Cos(player.angle) * .25f,
-                                    vy = (float)Math.Sin(player.angle) * .25f,
-                                    player = player.id,
-                                    bullet = cmd.value
-                                };
-                                scatters.Add(star);
-                                break;
-                            case AbilityType.Laser:
-                                players[cmd.player].laser += cmd.value;
-                                break;
-                        }
+                            }
+                            break;
+                        case AbilityType.Scatter:
+                            var star = new Scatter
+                            {
+                                x = player.x,
+                                y = player.y,
+                                angle = player.angle,
+                                vx = (float)Math.Cos(player.angle) * .25f,
+                                vy = (float)Math.Sin(player.angle) * .25f,
+                                player = player.id,
+                                bullet = cmd.value
+                            };
+                            scatters.Add(star);
+                            break;
+                        case AbilityType.Laser:
+                            players[cmd.player].laser += cmd.value;
+                            break;
+                    }
                 }
             }
         }

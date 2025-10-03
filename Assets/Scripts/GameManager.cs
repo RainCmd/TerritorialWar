@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Drawing;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -112,66 +111,7 @@ public class GameManager : MonoBehaviour
             CreateBall(player);
             shootCD = 0.25f;
         }
-        if (battle && battle.PreparedRenderer())
-        {
-            var tex = (Texture2D)battleTerritory.texture;
-            tex.SetPixels32(battle.rendererTerritory);
-            tex.Apply();
-
-            tex = (Texture2D)battleBullet.texture;
-            tex.SetPixels32(battle.rendererBullet);
-            tex.Apply();
-
-            tex = (Texture2D)battleShield.texture;
-            tex.SetPixels32(battle.rendererShield);
-            tex.Apply();
-
-            while (battle.renderObjects.Count < battleObjects.Count)
-            {
-                var obj = battleObjects[battleObjects.Count - 1];
-                obj.gameObject.SetActive(false);
-                battleObjects.RemoveAt(battleObjects.Count - 1);
-                battleObjectPool.Push(obj);
-            }
-            while (battle.renderObjects.Count > battleObjects.Count)
-            {
-                BattleObject obj;
-                if (battleObjectPool.Count > 0)
-                {
-                    obj = battleObjectPool.Pop();
-                }
-                else
-                {
-                    obj = Instantiate(prefabBattleObject);
-                    obj.transform.SetParent(objectContainer);
-                }
-                obj.gameObject.SetActive(true);
-                battleObjects.Add(obj);
-            }
-            for (int i = 0; i < battleObjects.Count; i++)
-                battleObjects[i].SetInfo(battle.renderObjects[i]);
-
-            var rt = (RectTransform)objectContainer;
-            for (int i = 0; i < playerInfoList.Count; i++)
-            {
-                var info = playerInfoList[i];
-                var player = battle.players[i];
-                info.SetValue(player.shield, player.territory, player.bullet, player.laser);
-                info.transform.localPosition = new Vector3(rt.rect.width * player.x / battle.width, rt.rect.height * player.y / battle.height, 0);
-            }
-
-            for (int i = 0; i < balls.Count; i++)
-            {
-                var ball = balls[i];
-                if (battle.players[ball.player].shield == 0)
-                {
-                    Recycle(ball);
-                    i--;
-                }
-            }
-            battleInfo.text = $"逻辑帧耗时:{LogicFrameTime}ms\n粒子数量:{battleBulletCount}";
-            battle.RequestRender();
-        }
+        if (battle && battle.PreparedRenderer()) RendererBattle();
         if (!battle && !victoryPanel.activeSelf && !readyPanel.activeSelf)
         {
             while (balls.Count > 0) Recycle(balls[0]);
@@ -184,6 +124,88 @@ public class GameManager : MonoBehaviour
                     break;
                 }
         }
+        if (battle != null && !battle && battle.PreparedRenderer())//结束后再渲染一帧，避免画面停留在最后一个玩家死之前
+        {
+            RendererBattle();
+            battle = null;
+        }
+    }
+    private void RendererBattle()
+    {
+        var tex = (Texture2D)battleTerritory.texture;
+        tex.SetPixels32(battle.rendererTerritory);
+        tex.Apply();
+
+        tex = (Texture2D)battleBullet.texture;
+        tex.SetPixels32(battle.rendererBullet);
+        tex.Apply();
+
+        tex = (Texture2D)battleShield.texture;
+        tex.SetPixels32(battle.rendererShield);
+        tex.Apply();
+
+        while (battle.renderObjects.Count < battleObjects.Count)
+        {
+            var obj = battleObjects[battleObjects.Count - 1];
+            obj.gameObject.SetActive(false);
+            battleObjects.RemoveAt(battleObjects.Count - 1);
+            battleObjectPool.Push(obj);
+        }
+        while (battle.renderObjects.Count > battleObjects.Count)
+        {
+            BattleObject obj;
+            if (battleObjectPool.Count > 0)
+            {
+                obj = battleObjectPool.Pop();
+            }
+            else
+            {
+                obj = Instantiate(prefabBattleObject);
+                obj.transform.SetParent(objectContainer);
+            }
+            obj.gameObject.SetActive(true);
+            battleObjects.Add(obj);
+        }
+        for (int i = 0; i < battleObjects.Count; i++)
+            battleObjects[i].SetInfo(battle.renderObjects[i]);
+
+        var rt = (RectTransform)objectContainer;
+        for (int i = 0; i < playerInfoList.Count; i++)
+        {
+            var info = playerInfoList[i];
+            var player = battle.players[i];
+            info.SetValue(player.shield, player.territory, player.bullet, player.laser);
+            info.transform.localPosition = new Vector3(rt.rect.width * player.x / battle.width, rt.rect.height * player.y / battle.height, 0);
+            if (player.shield == 0)
+            {
+                var laser = player.laser;
+                if (laser > 0)
+                {
+                    battle.OnCmd(new Command((byte)i, AbilityType.Snipe, laser));
+                    player.laser = 0;
+                }
+                var bullet = player.bullet;
+                if (bullet > 0)
+                {
+                    battle.OnCmd(new Command((byte)i, AbilityType.Scatter, bullet));
+                    player.bullet = 0;
+                }
+            }
+        }
+
+        for (int i = 0; i < balls.Count; i++)
+        {
+            var ball = balls[i];
+            if (battle.players[ball.player].shield == 0)
+            {
+                if (battle)
+                    battle.OnCmd(new Command(ball.player, AbilityType.Ball, ball.Value));
+                Recycle(ball);
+                i--;
+            }
+        }
+        battleInfo.text = $"逻辑帧耗时:{LogicFrameTime}ms\n粒子数量:{battleBulletCount}";
+        battle.RequestRender();
     }
     private void OnDestroy()
     {
